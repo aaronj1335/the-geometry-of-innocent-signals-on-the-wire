@@ -15,6 +15,7 @@
 		1E4C80F61480140800585F16 /* CrookedAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1E4C80F51480140800585F16 /* CrookedAppDelegate.m */; };
 		1E4C80F91480140800585F16 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1E4C80F71480140800585F16 /* MainStoryboard.storyboard */; };
 		1E4C80FC1480140800585F16 /* CrookedViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1E4C80FB1480140800585F16 /* CrookedViewController.m */; };
+		1E4C8103148016DC00585F16 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4C8102148016DC00585F16 /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		1E4C80F81480140800585F16 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = en; path = en.lproj/MainStoryboard.storyboard; sourceTree = "<group>"; };
 		1E4C80FA1480140800585F16 /* CrookedViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CrookedViewController.h; sourceTree = "<group>"; };
 		1E4C80FB1480140800585F16 /* CrookedViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CrookedViewController.m; sourceTree = "<group>"; };
+		1E4C8102148016DC00585F16 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1E4C8103148016DC00585F16 /* AVFoundation.framework in Frameworks */,
 				1E4C80E61480140800585F16 /* UIKit.framework in Frameworks */,
 				1E4C80E81480140800585F16 /* Foundation.framework in Frameworks */,
 				1E4C80EA1480140800585F16 /* CoreGraphics.framework in Frameworks */,
@@ -67,6 +70,7 @@
 		1E4C80E41480140800585F16 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1E4C8102148016DC00585F16 /* AVFoundation.framework */,
 				1E4C80E51480140800585F16 /* UIKit.framework */,
 				1E4C80E71480140800585F16 /* Foundation.framework */,
 				1E4C80E91480140800585F16 /* CoreGraphics.framework */,
