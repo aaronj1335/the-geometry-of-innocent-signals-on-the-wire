@@ -78,15 +78,12 @@
     return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
 }
 
-- (IBAction)record:(id)sender {
-    NSLog(@"--------------------------------------- record pressed");
-    NSLog(@"recording to %@", [self.url absoluteURL]);
-    NSLog(@"record settings: %@", [self.recordSettings description]);
-    
+- (IBAction)record:(id)sender {    
     if (recorder == nil) {
         [self startRecord];
         [recordButton setTitle:@"Stop Recording" forState:UIControlStateNormal];
         [playButton setTitle:@"Stop Recording and Play" forState:UIControlStateNormal];
+        [playButton setEnabled:YES];
     } else {
         [self stopRecord];
         [recordButton setTitle:@"Record" forState:UIControlStateNormal];
@@ -107,8 +104,6 @@
         int errorCode = CFSwapInt32HostToBig([error code]);
         NSLog(@"ERROR: %@ [%4.4s])", [error localizedDescription], (char*)&errorCode);
     }
-    
-    NSLog(@"recording");
 }
 
 - (void)stopRecord {
@@ -117,7 +112,6 @@
 }
 
 - (IBAction)play:(id)sender {
-    NSLog(@"--------------------------------------- play pressed");
     if (recorder != nil)
         [self record:recordButton];
 
@@ -139,7 +133,6 @@
     [player setDelegate:self];
     [player play];
     
-    NSLog(@"playaz gonna play");
 }
 
 - (void)stopPlay {
