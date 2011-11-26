@@ -405,3 +405,110 @@ class Decoder(object):
             periods.pop()
             cur_idx = idx_of_largest
             period = sum(periods) / len(periods)
+
+class ParityError(Exception): pass
+class ParseError(Exception): pass
+
+def get_digit(ss):
+    errs = []
+
+    if len(ss) < 5:
+        errs.append(ParseError('string len must be > 5: %s' % ss))
+    if int(ss[4]) != (ss[:4].count('1') + 1) % 2:
+        errs.append(ParityError('digit parity error: %s' % ss[:5]))
+
+    d = 0
+    for i,c in enumerate(ss[:4]):
+        d |= (int(c) << i)
+
+    return d, errs
+
+START_SENTINEL = '11010'
+END_SENTINEL = '11111'
+FIELD_SEPARATOR = '10110'
+
+def cc_num(s, start_sentinel=START_SENTINEL, field_separator=FIELD_SEPARATOR,
+        end_sentinel=END_SENTINEL):
+    """
+    parse a bit string into a credit card number.
+
+    s:      this is either a string or a generator of bits (as strings or ints)
+
+    """
+    errs = []
+    chrs = []
+
+    if hasattr(s, 'next'):
+        s = ''.join([ str(i) for i in s ])
+
+    charW = len(start_sentinel)
+
+    start_idx = s.find(start_sentinel)
+    cur_idx = start_idx
+    if cur_idx > len(s) - charW:
+        errs.append(ParseError('no start sentinel'))
+    end_idx = s.rfind(end_sentinel)
+
+    while cur_idx + charW <= len(s):
+        d = 0
+        count = 0
+        for i in xrange(charW - 1):
+            v = int(s[cur_idx+i])
+            count += v
+            d |= int(s[cur_idx+i]) << i
+        parity_bit = int(s[cur_idx + charW - 1])
+
+        if (count + 1) % 2 != parity_bit:
+            err = 'digit parity error: \n%s\n%s' % \
+                    (s[start_idx:end_idx+charW],
+                     ' '*(cur_idx - start_idx) + s[cur_idx:cur_idx+charW])
+            errs.append(ParityError(err))
+
+        if cur_idx <= end_idx:
+            yield chr(d + 48)
+        else:
+            break
+
+        cur_idx += charW
+
+    lrc, lrc_errs = calc_lrc(s)
+    errs += lrc_errs
+    if d != lrc:
+        errs.append(ParityError('bitstring parity error: received %d' % d))
+
+def calc_lrc(bitstring, start_sentinel=START_SENTINEL,
+        end_sentinel=END_SENTINEL):
+
+    errs = []
+
+    for i in range(len(bitstring)):
+        if bitstring[i:i+5] == start_sentinel: break
+    start = i
+
+    for i in range(0, len(bitstring[start:]), 5):
+        if bitstring[start+i:start+i+5] == end_sentinel:
+            break
+    else:
+        errs.append(
+            ParseError('no end sentinel found while calculating parity'))
+
+    end = start + i + 5
+
+    s = bitstring[start:end]
+
+    if len(s) % 5 != 0:
+        errs.append(ParseError('incomplete digits found while calculating lrc'))
+        return -1, errs
+
+    digits = []
+    i = 0
+    while i < len(s):
+        digits.append(s[i:i+5])
+        i += 5
+
+    lrc = ''.join(
+            [str(sum(int(d[i]) for d in digits).__mod__(2)) for i in range(5)])
+
+    d, digit_errs = get_digit(lrc)
+    errs += digit_errs
+    return d, errs
