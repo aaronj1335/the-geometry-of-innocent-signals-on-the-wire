@@ -1,5 +1,7 @@
-import numpy,cPickle,array
-from decorator import decorator
+import cPickle,array
+
+import numpy,scipy.signal
+
 
 def memoize(func):
     """
@@ -56,7 +58,8 @@ def cached_property(func, name=None):
     return property(_get)
 
 def smooth(x,window_len=11,window='hanning'):
-    """smooth the data using a window with requested size.
+    """
+    smooth the data using a window with requested size.
 
     from here:
 
@@ -90,10 +93,10 @@ def smooth(x,window_len=11,window='hanning'):
     """
 
     if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
+        raise ValueError('smooth only accepts 1 dimension arrays.')
 
     if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
+        raise ValueError('Input vector needs to be bigger than window size.')
 
 
     if window_len<3:
@@ -102,7 +105,7 @@ def smooth(x,window_len=11,window='hanning'):
 
     allowed_types = ('flat', 'hanning', 'hamming', 'bartlett', 'blackman')
     if not window in allowed_types:
-        raise ValueError( '"window" must be one of %s' % \
+        raise ValueError('"window" must be one of %s' % \
                 ', '.join(t for t in allowed_types))
 
 
@@ -144,11 +147,11 @@ def local_extrema(s, combined=False):
                 maxs.append(i-1)
                 increasing = True
 
-    return sorted(mins + maxs) if combined else mins,maxs
+    return sorted(mins + maxs) if combined else (mins, maxs)
 
 def raw_signal(fname):
     """
-    convenience function to get a raw signal.
+    convenience function to get a raw signal as an arra.array() from a PCM file
 
     "fname" is the filename of the signal in S16LE PCM format
     """
@@ -219,9 +222,9 @@ class Signal(object):
     end_time = cached_property(lambda self: self.end/self.FS)
 
     @memoize
-    def smoothed(self, factor=None):
-        if type(factor) == int:
-            smoothed_sig = smooth(self.y, window_len=factor)
+    def smoothed(self, window_len=None):
+        if type(window_len) == int:
+            smoothed_sig = smooth(self.y, window_len=window_len)
 
             # smoothing may return something longer than the original signal.
             # if it did then cut the ends off the smoothed signal
@@ -229,7 +232,7 @@ class Signal(object):
                 diff = len(self.y) - len(smoothed_sig)
                 start = abs(diff) / 2
                 end = abs(diff) - start
-                return smoothed_sig[start:end]
+                return smoothed_sig[start:-end]
             else:
                 return smoothed_sig
         else:
@@ -237,12 +240,12 @@ class Signal(object):
             return self.y
 
     @memoize
-    def medfilt(self, window_size=7, smoothing=None):
-        return scipy.signal.medfilt(self.smoothed(smoothing), window_size)
+    def medfilt(self, window_len=7, smoothing=None):
+        return scipy.signal.medfilt(self.smoothed(smoothing), window_len)
 
     @memoize
-    def peaks(self, window_size=7, smoothing=10):
-        return self.smoothed(smoothing) - self.medfilt(window_size, smoothing)
+    def peaks(self, window_len=7, smoothing=10):
+        return self.smoothed(smoothing) - self.medfilt(window_len, smoothing)
 
     @memoize
     def hist_threshold_filtered(self, extra=0.5, hist_win_size=200):
@@ -263,12 +266,142 @@ class Signal(object):
         """
         tot_len = self.end - self.start
         htf = self.peaks().copy()
-        for i in range(self.s.start, self.s.end, hist_win_size):
+
+        for i in range(self.start, self.end, hist_win_size):
             hist, bin_edges = numpy.histogram(self.peaks()[i:i+hist_win_size])
             cutoff = abs(bin_edges[local_extrema(hist)[0][0] + 2])
             cutoff += extra * hist_win_size
 
             for j in range(i, i + hist_win_size):
-                if abs(htf[t][j]) <= cutoff:
-                    htf[t][j] = 0
+                if abs(htf[j]) <= cutoff:
+                    htf[j] = 0
         return htf
+
+class Decoder(object):
+
+    def __init__(self, signal):
+        self.s = signal
+        self.sig = self.s.hist_threshold_filtered()
+
+    def next_peak(self, idx, limit=None):
+        """
+        this returns the index of the next peak after 'idx', or None if it does
+        not find one before 'limit'. if 'limit' is none, it will search to the
+        end of the signal
+        """
+        increasing = True if self.sig[idx+1] > self.sig[idx] else False
+
+        for i,v in enumerate(self.sig[idx+1:], start=idx+1):
+            if  v > self.sig[i-1] and not increasing or \
+                v < self.sig[i-1] and increasing:
+                return i-1
+
+        return None
+
+    def get_start_idx_and_period(self, consecutive_periods=6):
+        """
+        this picks a good starting point where the signal has been established
+        and returns the index of that peak and the list of periods up to that
+        peak
+
+        start: the index to start looking for peaks.  defaults to the 'start'
+        attribute of the Signal class
+
+        consecutive_periods: the number of good consecutive periods to find
+        before returning.
+
+        a good consecutive period is one whose width is within 80% of the
+        preceding periods.
+        """
+        for start,v in enumerate(self.sig[self.s.start:], self.s.start):
+            if abs(v) > 10:
+                break
+
+        cur = self.next_peak(start)
+        periods = [cur - start]
+        last = start
+        count = 0
+        while True:
+            last = cur
+            cur = self.next_peak(cur)
+            avg = sum(periods)/len(periods)
+            if abs((cur - last) - avg) > 0.8 * avg:
+                periods = [cur - last]
+            else:
+                periods.insert(0, cur - last)
+                if len(periods) >= consecutive_periods:
+                    start = cur
+                    break
+
+        return start, periods
+
+    def disaster_recovery(self, cur_idx, period):
+        """
+        this function assumes that there was no local extrema found in the
+        expected window for the get_digit function.
+        
+        so this is going to be my algorithm:
+
+        - consider the middle 40% of the window
+        - if there are no local extrema in this sub-window, it is a zero
+        - otherwise it's a one
+        - either way return a tuple: (index, magnitude)
+        - if it's a 1, the magnitude will be the same as cur_idx
+        - if it's a 0, the magnitude will be the opposite of cur_idx
+        """
+        win_start, win_end = (int(cur_idx + 0.30*period),
+                              int(cur_idx + 0.70*period))
+
+        if len(local_extrema(self.sig[win_start:win_end], combined=True)) == 0:
+            bit = 0  # becuse there are no local extrema in the sub-window
+            mag = -1 * self.sig[cur_idx]
+        else:
+            bit = 1  # becuse there are local extrema in the sub-window
+            mag =      self.sig[cur_idx]
+
+        return mag, cur_idx + period, {
+                'cur_idx': cur_idx,
+                'period': period,
+                'bit': bit,
+            }
+
+    def get_end_idx(self):
+        cur = self.s.end
+        while self.sig[cur] < 10:
+            cur -= 1
+        return cur
+
+    def bits(self):
+        cur_idx, periods = self.get_start_idx_and_period()
+        end_idx = self.get_end_idx()
+        period = sum(periods) / len(periods)
+        error = None
+
+        while cur_idx + period < end_idx:
+            win_start = int(cur_idx + period - 0.30*period)
+            win_end   = int(cur_idx + period + 0.30*period)
+
+            cur_val = self.sig[cur_idx] if error == None else largest_val
+
+            le = local_extrema(self.sig[win_start:win_end], combined=True)
+            if len(le) == 0:
+                largest_val, idx_of_largest, error = \
+                        self.disaster_recovery(cur_idx, period)
+                largest_mag = abs(largest_val)
+            else:
+                extrema = [ (win_start+e, self.sig[win_start + e]) for e in le ]
+                largest_mag, idx_of_largest = \
+                        max( (abs(y), x) for x, y in extrema )
+                largest_val = self.sig[idx_of_largest]
+                error = None
+
+            polarity_was_reversed = max(largest_mag, abs(cur_val)) < \
+                                    abs(cur_val - largest_val)
+            bit = 0 if polarity_was_reversed else 1
+
+            yield bit, cur_idx, periods, error
+
+            periods.insert(0, idx_of_largest - cur_idx)
+            periods.pop()
+            cur_idx = idx_of_largest
+            period = sum(periods) / len(periods)
