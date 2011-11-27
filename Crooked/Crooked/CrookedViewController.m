@@ -12,6 +12,7 @@
 @synthesize recordButton;
 @synthesize playButton;
 @synthesize hostTextField;
+@synthesize outputLabel;
 @synthesize url = _url;
 @synthesize recordSettings = _recordSettings;
 @synthesize data = _data;
@@ -29,11 +30,9 @@
     [super viewDidLoad];
 	// Do any additional setup after loading the view, typically from a nib.
     
-//    self.url = [NSURL fileURLWithPath:[NSString stringWithFormat:@"%@/recorded_audio.mp4", [[NSBundle mainBundle] resourcePath]]];
     self.url = [NSURL fileURLWithPath:[NSString stringWithFormat:@"%@/recorded_audio.pcm", [[NSBundle mainBundle] resourcePath]]];
     
     self.recordSettings = [[NSMutableDictionary alloc] initWithCapacity:10];
-//    [self.recordSettings setObject:[NSNumber numberWithInt:kAudioFormatMPEG4AAC] forKey:AVFormatIDKey];
     [self.recordSettings setObject:[NSNumber numberWithInt:kAudioFormatLinearPCM] forKey:AVFormatIDKey];
     [self.recordSettings setObject:[NSNumber numberWithFloat:44100.0] forKey:AVSampleRateKey];
     [self.recordSettings setObject:[NSNumber numberWithInt:2] forKey:AVNumberOfChannelsKey];
@@ -41,12 +40,9 @@
     [self.recordSettings setObject:[NSNumber numberWithBool:NO] forKey:AVLinearPCMIsBigEndianKey];
     [self.recordSettings setObject:[NSNumber numberWithBool:NO] forKey:AVLinearPCMIsFloatKey];
     
-//    [request setURL:[NSURL URLWithString:self.hostTextField.text]];
-//    [request setHTTPMethod:@"POST"];
-    request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://mac-trainwreck.local:8080/data"]];
+    self.data = [NSMutableData alloc];
+    request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:self.hostTextField.text]];
     [request setHTTPMethod:@"POST"];
-    NSLog(@"request url: %@, and method: %@", [[request URL] absoluteString], @"POST");
-//    connection = [[NSURLConnection alloc] initWithRequest:request delegate:self];
     connection = nil;
 }
 
@@ -55,6 +51,7 @@
     [self setRecordButton:nil];
     [self setPlayButton:nil];
     [self setHostTextField:nil];
+    [self setOutputLabel:nil];
     [super viewDidUnload];
     // Release any retained subviews of the main view.
     // e.g. self.myOutlet = nil;
@@ -172,17 +169,14 @@
 }
 
 - (void)connection:(NSURLConnection*)connection didReceiveResponse:(NSURLResponse *)response {
-    NSLog(@"in didReceiveResponse");
     [self.data setLength:0];
 }
 
-- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
-    NSLog(@"in didReceiveData");
+- (void)connection:(NSURLConnection*)connection didReceiveData:(NSData*)data {
     [self.data appendData:data];
 }
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
-    NSLog(@"in didFailWithError");
     [[[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Error", @"")
                                  message:[error localizedDescription]
                                 delegate:nil
@@ -191,8 +185,8 @@
 }
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-    NSLog(@"in didFinishLoading");
     NSString* response = [[NSString alloc] initWithData:self.data encoding:NSUTF8StringEncoding];
-    NSLog(@"response: %@", response);
+    
+    self.outputLabel.text = response;
 }
 @end
