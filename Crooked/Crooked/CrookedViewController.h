@@ -16,6 +16,8 @@
     
     NSMutableURLRequest* request;
     NSURLConnection* connection;
+    
+    UIBackgroundTaskIdentifier bgTaskId;
 }
 
 @property (weak, nonatomic) IBOutlet UIButton* recordButton;
@@ -55,5 +57,7 @@
 - (void)connection:(NSURLConnection*)connection didFailWithError:(NSError*)error;
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection;
+
+- (void)toggleBackgroundTask;
 
 @end

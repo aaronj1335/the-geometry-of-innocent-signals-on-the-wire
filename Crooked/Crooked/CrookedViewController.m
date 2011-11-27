@@ -44,6 +44,8 @@
     request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:self.hostTextField.text]];
     [request setHTTPMethod:@"POST"];
     connection = nil;
+    
+    bgTaskId = UIBackgroundTaskInvalid;
 }
 
 - (void)viewDidUnload
@@ -100,6 +102,8 @@
         [recordButton setTitle:@"Record" forState:UIControlStateNormal];
         [playButton setTitle:@"Play" forState:UIControlStateNormal];
     }
+    
+    [self toggleBackgroundTask];
 }
 
 - (void)startRecord {
@@ -126,7 +130,6 @@
     [request setHTTPBody:data];
     NSLog(@"starting connection");
     connection = [[NSURLConnection alloc] initWithRequest:request delegate:self];
-//    [connection start];
 }
 
 - (IBAction)play:(id)sender {
@@ -140,6 +143,8 @@
         [self stopPlay];
         [playButton setTitle:@"Play" forState:UIControlStateNormal];        
     }
+    
+    [self toggleBackgroundTask];
 }
 
 - (void)startPlay {
@@ -150,7 +155,6 @@
     player = [[AVAudioPlayer alloc] initWithContentsOfURL:self.url error:&error];
     [player setDelegate:self];
     [player play];
-    
 }
 
 - (void)stopPlay {
@@ -189,4 +193,14 @@
     
     self.outputLabel.text = response;
 }
+
+- (void)toggleBackgroundTask {
+    if (bgTaskId == UIBackgroundTaskInvalid) {
+        bgTaskId = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:NULL];
+    } else {
+        [[UIApplication sharedApplication] endBackgroundTask:bgTaskId];
+        bgTaskId = UIBackgroundTaskInvalid;
+    }
+}
+
 @end
