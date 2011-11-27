@@ -8,19 +8,27 @@
 
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
+//#import <NSUR
 
-@interface CrookedViewController : UIViewController <AVAudioPlayerDelegate> {
+@interface CrookedViewController : UIViewController <AVAudioPlayerDelegate, NSURLConnectionDelegate> {
     AVAudioPlayer* player;
     AVAudioRecorder* recorder;
+    
+    NSMutableURLRequest* request;
+    NSURLConnection* connection;
 }
 
 @property (weak, nonatomic) IBOutlet UIButton* recordButton;
 
 @property (weak, nonatomic) IBOutlet UIButton* playButton;
 
+@property (weak, nonatomic) IBOutlet UITextField *hostTextField;
+
 @property (copy, nonatomic) NSURL* url;
 
 @property (strong, nonatomic) NSMutableDictionary* recordSettings;
+
+@property (strong, nonatomic) NSMutableData* data;
 
 - (IBAction)record:(id)sender;
 
@@ -33,6 +41,17 @@
 - (void)startPlay;
 
 - (void)stopPlay;
+
 - (void)audioPlayerDidFinishPlaying:(AVAudioPlayer*)plyr successfully:(BOOL)flag;
+
+- (BOOL) textFieldShouldReturn:(UITextField*)hostTextField;
+
+- (void)connection:(NSURLConnection*)connection didReceiveResponse:(NSURLResponse *)response;
+
+- (void)connection:(NSURLConnection*)connection didReceiveData:(NSData*)data;
+
+- (void)connection:(NSURLConnection*)connection didFailWithError:(NSError*)error;
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection;
 
 @end

@@ -46,10 +46,27 @@
                                     <action selector="play:" destination="2" eventType="touchUpInside" id="Nkt-ul-lsp"/>
                                 </connections>
                             </button>
+                            <textField opaque="NO" clipsSubviews="YES" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" text="http://mac-trainwreck.local:8080/data" borderStyle="roundedRect" placeholder="URL" minimumFontSize="17" id="Toa-wk-utj">
+                                <rect key="frame" x="45" y="160" width="230" height="31"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits"/>
+                                <connections>
+                                    <outlet property="delegate" destination="2" id="ibu-o0-rvM"/>
+                                </connections>
+                            </textField>
+                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" text="Decoder host:" lineBreakMode="tailTruncation" minimumFontSize="10" id="PC8-aB-DbY">
+                                <rect key="frame" x="45" y="131" width="230" height="21"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
                     </view>
                     <connections>
+                        <outlet property="hostTextField" destination="Toa-wk-utj" id="4Mv-jp-eJI"/>
                         <outlet property="playButton" destination="L6P-IW-Ic4" id="iy1-oQ-txZ"/>
                         <outlet property="recordButton" destination="jwi-Ke-u1y" id="19h-HF-KzW"/>
                     </connections>
@@ -63,6 +80,7 @@
             <relationships>
                 <relationship kind="action" name="play:"/>
                 <relationship kind="action" name="record:"/>
+                <relationship kind="outlet" name="hostTextField" candidateClass="UITextField"/>
                 <relationship kind="outlet" name="playButton" candidateClass="UIButton"/>
                 <relationship kind="outlet" name="recordButton" candidateClass="UIButton"/>
             </relationships>
