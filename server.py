@@ -8,16 +8,18 @@ import sig
 class Server(SimpleHTTPRequestHandler):
 
     def do_POST(self):
-        print '**************************************** in do_POST'
-        # print dir(self)
-        # print self.request
         length = int(self.headers.getheader('content-length'))
-        # a = array.array('h')
-        # a.fromstring(self.rfile.read(length))
-        # d = sig.Decoder(signal=sig.Signal(raw_signal=a))
         with open('out.pcm', 'w') as out:
             out.write(self.rfile.read(length))
-        self.send_response(200, 'abc')
+
+        response_str = 'abc 123'
+
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(response_str)))
+        self.send_header("Content-type", self.guess_type('abc.txt'))
+        self.end_headers()
+
+        self.wfile.write(response_str)
 
 def handle_int(sig_num, stack_frame):
     try:
