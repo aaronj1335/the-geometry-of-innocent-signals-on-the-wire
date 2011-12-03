@@ -206,8 +206,7 @@ class Signal(object):
     def abs_y(self):
         return abs(self.y)
 
-    @cached_property
-    def start(self):
+    def _find_start_and_end(self):
         """
         i was just doing a dumb start threshold.  this wasn't very robust, so i
         came up w/ a much more complicated method that takes a window, compares
@@ -220,6 +219,7 @@ class Signal(object):
         l = self.START_WINDOW_SIZE * self.FS
         n = self.START_WINDOW_NUM_PEAKS
         rng = range(0, len(self.abs_y), int(l / 4))
+        self._start_prop = 0
 
         avgs = numpy.zeros(len(rng))
         above_10_count = 0
@@ -239,32 +239,32 @@ class Signal(object):
 
         for i,v in enumerate(self.y[above_10_start:], above_10_start):
             if v > (above_10_value / 2.0):
-                return i
+                self._start_prop = i
+                break
 
-        # the dumb, simple threshold method
-        # for i,s in enumerate(self.y):
-        #     if abs(s) > self.START_THRESHOLD:
-        #         return i
+        # while we've figured all this stuff out, go ahead and save off the end
+        # index
+        above_10_end = above_10_start / int(l / 4)
+        while avgs[above_10_end] > 5:
+            above_10_end += 1
 
+        self._end_prop = above_10_end * int(l / 4)
+
+    @cached_property
+    def start(self):
+        if not hasattr(self, '_start_prop'):
+            self._find_start_and_end()
+        return self._start_prop
     start_time = cached_property(lambda self: self.start/self.FS)
 
     @cached_property
     def end(self):
-        win = [ self.y[i]
-                for i in range(self.start, self.start + self.END_WIN_LEN) ]
-        i = self.start + self.END_WIN_LEN
-        min_index = self.start + self.END_WIN_LEN + \
-                    int(self.MIN_SWIPE_LEN * self.FS)
-
-        for s in self.y[self.start + self.END_WIN_LEN:]:
-            win.append(abs(s))
-            win.pop(0)
-            i += 1
-
-            # this checks if we've reached the end of the signal
-            if i > min_index and sum(win) / len(win) < self.LOW_AVERAGE:
-                return i - self.END_WIN_LEN
-    end_time = cached_property(lambda self: self.end/self.FS)
+        if not hasattr(self, '_end_prop'):
+            self._find_start_and_end()
+        return self._end_prop
+    @cached_property
+    def end_time(self):
+        return self.end/self.FS
 
     @memoize
     def smoothed(self, window_len=None):
@@ -326,7 +326,8 @@ class Decoder(object):
 
     def __init__(self, signal, filtering='medfilt'):
         self.s = signal
-        self.sig = getattr(self.s, filtering)()
+        self.sig = \
+                self.s.y if filtering == None else getattr(self.s, filtering)()
 
     def next_peak(self, idx, limit=None):
         """
