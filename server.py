@@ -22,8 +22,8 @@ class Server(SimpleHTTPRequestHandler):
         length = int(self.headers.getheader('content-length'))
         data_str = self.rfile.read(length)
 
-        with open('out.pcm', 'w') as out:
-            out.write(data_str)
+        # with open('out.pcm', 'w') as out:
+        #     out.write(data_str)
 
         try:
             response_str = num(data_str)
