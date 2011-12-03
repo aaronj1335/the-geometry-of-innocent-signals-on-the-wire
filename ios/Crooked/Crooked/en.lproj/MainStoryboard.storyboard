@@ -62,20 +62,19 @@
                                 <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
-                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" text="" textAlignment="center" lineBreakMode="tailTruncation" minimumFontSize="10" id="GQc-yw-MYo">
-                                <rect key="frame" x="45" y="284" width="230" height="129"/>
+                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" userInteractionEnabled="NO" contentMode="TopLeft" id="RS6-WB-QiM">
+                                <rect key="frame" x="20" y="199" width="280" height="241"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
-                                <nil key="highlightedColor"/>
-                                <size key="shadowOffset" width="0.0" height="1"/>
-                            </label>
+                                <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="11"/>
+                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                            </textView>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
                     </view>
                     <connections>
                         <outlet property="hostTextField" destination="Toa-wk-utj" id="4Mv-jp-eJI"/>
-                        <outlet property="outputLabel" destination="GQc-yw-MYo" id="Etz-9I-2UN"/>
+                        <outlet property="outputLabel" destination="RS6-WB-QiM" id="o56-kF-E8S"/>
                         <outlet property="playButton" destination="L6P-IW-Ic4" id="iy1-oQ-txZ"/>
                         <outlet property="recordButton" destination="jwi-Ke-u1y" id="19h-HF-KzW"/>
                     </connections>
@@ -90,7 +89,7 @@
                 <relationship kind="action" name="play:"/>
                 <relationship kind="action" name="record:"/>
                 <relationship kind="outlet" name="hostTextField" candidateClass="UITextField"/>
-                <relationship kind="outlet" name="outputLabel" candidateClass="UILabel"/>
+                <relationship kind="outlet" name="outputLabel" candidateClass="UITextView"/>
                 <relationship kind="outlet" name="playButton" candidateClass="UIButton"/>
                 <relationship kind="outlet" name="recordButton" candidateClass="UIButton"/>
             </relationships>

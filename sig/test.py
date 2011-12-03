@@ -13,7 +13,7 @@ if 'plot' not in globals():
 
 execfile('sig/__init__.py')
 
-s = Signal(raw_signal=raw_signal('out3.pcm'))
+s = Signal(raw_signal=raw_signal('outsilver1.pcm'))
 d = Decoder(signal=s, filtering='medfilt')
 
 def vline(x, color='r'):

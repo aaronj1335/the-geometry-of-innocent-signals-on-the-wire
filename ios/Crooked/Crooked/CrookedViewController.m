@@ -54,6 +54,7 @@
     [self setPlayButton:nil];
     [self setHostTextField:nil];
     [self setOutputLabel:nil];
+    [self setOutputLabel:nil];
     [super viewDidUnload];
     // Release any retained subviews of the main view.
     // e.g. self.myOutlet = nil;
@@ -190,8 +191,12 @@
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
     NSString* response = [[NSString alloc] initWithData:self.data encoding:NSUTF8StringEncoding];
-    
-    self.outputLabel.text = response;
+
+    if (response.length > 36) {
+        response = [response substringToIndex:36];
+    }
+    NSString* all = [[NSString alloc] initWithFormat:@"%@\n%@", response, self.outputLabel.text];
+    self.outputLabel.text = all;
 }
 
 - (void)toggleBackgroundTask {

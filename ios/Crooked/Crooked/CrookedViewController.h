@@ -26,7 +26,8 @@
 
 @property (weak, nonatomic) IBOutlet UITextField *hostTextField;
 
-@property (weak, nonatomic) IBOutlet UILabel *outputLabel;
+//@property (weak, nonatomic) IBOutlet UILabel *outputLabel;
+@property (weak, nonatomic) IBOutlet UITextView *outputLabel;
 
 @property (copy, nonatomic) NSURL* url;
 
