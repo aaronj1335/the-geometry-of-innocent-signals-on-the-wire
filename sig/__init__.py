@@ -118,9 +118,11 @@ def smooth(x,window_len=11,window='hanning'):
     y=numpy.convolve(w/w.sum(),s,mode='valid')
     return y
 
-def local_extrema(s, combined=False):
+def is_increasing(s, ret_idx=False):
     """
-    return two lists, one of local mins, one of local maxes
+    returns true if signal is increasing from index 0 forward.
+
+    if the signal is flat the entire way, None is returned
     """
     increasing = None
     for j,v in enumerate(s[1:], 1):
@@ -131,20 +133,32 @@ def local_extrema(s, combined=False):
             increasing = False
             break
 
+    if ret_idx:
+        return increasing, j
+    else:
+        return increasing
+
+
+def local_extrema(s, combined=False):
+    """
+    return two lists, one of local mins, one of local maxes
+    """
+    increasing, change_start = is_increasing(s, ret_idx=True)
+
     if increasing == None:
         # we never saw any peaks, return empty output
         return [] if combined else ([], [])
 
-    last = s[j-1]
+    last = s[change_start]
     mins, maxs = [], []
-    for i in xrange(j, len(s)):
+    for i in xrange(change_start, len(s)):
         if increasing:
             if s[i] < s[i-1]:
-                mins.append(i-1)
+                maxs.append(i-1)
                 increasing = False
         else:
             if s[i] > s[i-1]:
-                maxs.append(i-1)
+                mins.append(i-1)
                 increasing = True
 
     return sorted(mins + maxs) if combined else (mins, maxs)
@@ -285,7 +299,7 @@ class Signal(object):
             return self.y
 
     @memoize
-    def medfilt(self, window_len=7, smoothing=None):
+    def medfilt(self, window_len=7, smoothing=10):
         return scipy.signal.medfilt(self.smoothed(smoothing), window_len)
 
     @memoize
@@ -293,7 +307,7 @@ class Signal(object):
         return self.smoothed(smoothing) - self.medfilt(window_len, smoothing)
 
     @memoize
-    def hist_threshold_filtered(self, extra=0.5, hist_win_size=200):
+    def hist_threshold_filtered(self, extra=0.0, hist_win_size=200):
         """
         we need to get a cutoff amplitude for the (medfilt-signal) curve.  the
         prob is this cutoff changes.
@@ -310,11 +324,12 @@ class Signal(object):
         that
         """
         tot_len = self.end - self.start
-        htf = self.peaks().copy()
+        htf = self.medfilt().copy()
 
         for i in range(self.start, self.end, hist_win_size):
-            hist, bin_edges = numpy.histogram(self.peaks()[i:i+hist_win_size])
-            cutoff = abs(bin_edges[local_extrema(hist)[0][0] + 2])
+            hist, bin_edges = numpy.histogram(self.medfilt()[i:i+hist_win_size])
+            le = local_extrema(hist)
+            cutoff = abs(bin_edges[le[0][0] + 1])
             cutoff += extra * hist_win_size
 
             for j in range(i, i + hist_win_size):
@@ -324,23 +339,34 @@ class Signal(object):
 
 class Decoder(object):
 
-    def __init__(self, signal, filtering='medfilt'):
+    def __init__(self, signal, filtering='hist_threshold_filtered'):
         self.s = signal
         self.sig = \
                 self.s.y if filtering == None else getattr(self.s, filtering)()
 
-    def next_peak(self, idx, limit=None):
+    def next_peak(self, idx, min_dist=12, min_ampl=1, zero_based=True):
         """
         this returns the index of the next peak after 'idx', or None if it does
-        not find one before 'limit'. if 'limit' is none, it will search to the
-        end of the signal
+        not find one before the end of the signal
         """
-        increasing = True if self.sig[idx+1] > self.sig[idx] else False
+        min_ampl = abs(min_ampl)
 
-        for i,v in enumerate(self.sig[idx+1:], start=idx+1):
+        increasing = is_increasing(self.sig[idx:])
+        if increasing == None:
+            return None
+
+        for i,v in enumerate(self.sig[idx+min_dist:], start=idx+min_dist):
             if  v > self.sig[i-1] and not increasing or \
                 v < self.sig[i-1] and increasing:
-                return i-1
+                increasing != increasing
+
+                if zero_based:
+                    if  increasing and self.sig[i] >= min_ampl or \
+                        not increasing and self.sig[i] <= -min_ampl:
+                        return i + 3
+                else:
+                    if abs(self.sig[i]) >= min_ampl:
+                        return i + 3
 
         return None
 
@@ -359,24 +385,21 @@ class Decoder(object):
         a good consecutive period is one whose width is within 80% of the
         preceding periods.
         """
-        for start,v in enumerate(self.sig[self.s.start:], self.s.start):
-            if abs(v) > 10:
-                break
+        start = self.next_peak(self.s.start)
 
-        cur = self.next_peak(start)
+        cur = self.next_peak(start, min_ampl=self.s.y[start]/2.0)
         periods = [cur - start]
         last = start
         count = 0
         while True:
             last = cur
-            cur = self.next_peak(cur)
-            avg = sum(periods)/len(periods)
+            cur = self.next_peak(cur, min_ampl=self.s.y[last]/2.0)
+            avg = sum(periods) / len(periods)
             if abs((cur - last) - avg) > 0.8 * avg:
                 periods = [cur - last]
             else:
                 periods.insert(0, cur - last)
                 if len(periods) >= consecutive_periods:
-                    start = cur
                     break
 
         return start, periods
