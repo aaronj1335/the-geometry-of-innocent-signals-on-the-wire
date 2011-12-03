@@ -1,4 +1,4 @@
-import cPickle,array
+import cPickle,array,heapq
 
 import numpy,scipy.signal
 
@@ -176,6 +176,12 @@ class Signal(object):
     # the amplitude that triggers the start of the signal
     START_THRESHOLD = 400.
 
+    # the window size used in finding the start of the signal
+    START_WINDOW_SIZE = 0.1
+
+    # the number of peaks in the start window to comapre to the average
+    START_WINDOW_NUM_PEAKS = 10
+
     # the minimum number of samples between peaks
     MIN_SEPARATION = 10
 
@@ -197,10 +203,49 @@ class Signal(object):
         return numpy.array([ float(i) for i in self.raw_signal ])
 
     @cached_property
+    def abs_y(self):
+        return abs(self.y)
+
+    @cached_property
     def start(self):
-        for i,s in enumerate(self.y):
-            if abs(s) > self.START_THRESHOLD:
+        """
+        i was just doing a dumb start threshold.  this wasn't very robust, so i
+        came up w/ a much more complicated method that takes a window, compares
+        the 10 higest values to the average, and then looks for 10 consecutive
+        windows of a large difference between these two values.
+
+        turns out this isn't much more robust.  but it works for the data
+        coming from the phone, so oh well.
+        """
+        l = self.START_WINDOW_SIZE * self.FS
+        n = self.START_WINDOW_NUM_PEAKS
+        rng = range(0, len(self.abs_y), int(l / 4))
+
+        avgs = numpy.zeros(len(rng))
+        above_10_count = 0
+        above_10_start = None
+        for ii,i in enumerate(rng):
+            avg = sum(self.abs_y[i:i+l]) / l
+            peaks = heapq.nlargest(n, self.abs_y[i:i+l])
+            peak_avg = sum(peaks) / n
+            avgs[ii] = peak_avg - avg
+            if peak_avg - avg >= 10:
+                above_10_count += 1
+                if above_10_count == 10:
+                    above_10_start = rng[ii - 9]
+                    above_10_value = avgs[ii - 9]
+            else:
+                above_10_count = 0
+
+        for i,v in enumerate(self.y[above_10_start:], above_10_start):
+            if v > (above_10_value / 2.0):
                 return i
+
+        # the dumb, simple threshold method
+        # for i,s in enumerate(self.y):
+        #     if abs(s) > self.START_THRESHOLD:
+        #         return i
+
     start_time = cached_property(lambda self: self.start/self.FS)
 
     @cached_property
@@ -279,9 +324,9 @@ class Signal(object):
 
 class Decoder(object):
 
-    def __init__(self, signal):
+    def __init__(self, signal, filtering='medfilt'):
         self.s = signal
-        self.sig = self.s.hist_threshold_filtered()
+        self.sig = getattr(self.s, filtering)()
 
     def next_peak(self, idx, limit=None):
         """
