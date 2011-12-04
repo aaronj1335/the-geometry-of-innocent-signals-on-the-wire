@@ -10,7 +10,7 @@
 
 ## Overview
 
-[Square][square] is a payment gateway that accepts credit card payments through the headphone jack of a smart phone or tablet device.  This report investigates the security of this system, specifically on the [iOS][ios] platform.  The Square System Components section provides details about the card reader, iOS application, and physical and network infrastructure; the Security provides a threat model, followed by several possible attack vectors.
+[Square][square] is a payment gateway that accepts credit card payments through the headphone jack of a smart phone or tablet device.  This report investigates the security of this system, specifically on the [iOS][ios] platform.  The Square System Components section provides details about the card reader, iOS application, and physical and network infrastructure; the Security section provides a threat model, followed by several possible attack vectors.
 
 This project also includes a sample implementation that demonstrates how a malicious iOS app could skim credit card numbers by either impersonating the Square app or possibly snooping the credit card signal from the audio jack.
 
@@ -22,15 +22,15 @@ This project also includes a sample implementation that demonstrates how a malic
 
 The Square card reader is a dongle that plugs into the headphone jack of the device.  They are freely attainable by signing up for an account on the Square website, and likely inexpensive to manufacture.  They are small, about one square inch in size, and require no batteries or power supply.  The signal coming from the reader into the device is analog, and the reader appears to have no digital circuitry.
 
-Immediately the card reader is a red flag; it is extremely difficult to encrypt an analog signal coming from an unpowered device, so this is a likely attack vector.  Indeed, [VeriFone][verifone_calls_out_square] has criticized Square for this.  Square [initially said][square_wont_encrypt] they had no plans to encrypt their reader, but they have [since announced][square_working_with_visa_reqs] that they will provide an encrypted reader, in accordance with Visa [security guidelines][visa_security_requirements].  The new reader was rumored to be [available the summer of 2011][square_encrypted_reader], but the reader used for this project, which was received October 1st, 2011, was found not to be encrypted.
+Immediately the card reader is a security red flag; it is extremely difficult to encrypt an analog signal coming from an unpowered device, so this is a likely attack vector.  Indeed, [VeriFone][verifone_calls_out_square] has criticized Square for this.  Square [initially said][square_wont_encrypt] they had no plans to encrypt their reader, but they have [since announced][square_working_with_visa_reqs] that they will provide an encrypted reader, in accordance with Visa [security guidelines][visa_security_requirements].  The new reader was rumored to be [available the summer of 2011][square_encrypted_reader], but the reader used for this project, which was received October 1st, 2011, was found not to be encrypted.
 
 #### iOS Application
 
 Square's iOS application is [PCI DSS-1 compliant][square_security], which has a couple important implications:
 
-- **Data stored on the device must be encrypted** ([requirement 3][pci]): This requirement could likely accomplished with [Apple's iOS Keychain API][keychain], however Square claims to [store no magnetic stripe data][square_security]
+- **Data stored on the device must be encrypted** ([requirement 3][pci]): This requirement could likely accomplished with [Apple's iOS Keychain API][keychain], however Square claims to [store no magnetic stripe data][square_security].
 
-- **Data transmitted over public networks must be encrypted** ([requirement 4][pci]): This requirement appears to be accomplished with SSL.  Vulnerabilities in SSL and certificate authorities are a broad subject that are out of scope for this project, so this aspect of the Square system was not investigated any further.
+- **Data transmitted over public networks must be encrypted** ([requirement 4][pci]): This requirement appears to be accomplished with SSL.  Vulnerabilities in SSL and certificate authorities encompass a broad subject that is out of scope for this project, so this aspect of the Square system was not investigated any further.
 
 However there are facets of the device that are not addressed in the PCI standard, specifically the standard does not place constriants on data traveling from the reader to the application, aside from the very general sixth requirement, to "develop and maintain secure systems and applications".
 
@@ -38,7 +38,7 @@ Due to the sandboxed, restricted nature of iOS apps, it is generally difficult f
 
 This project found that while a foreground app is recording audio, it is possible for a background app to be doing so as well, without any notification to the user, though a user would have had to open the background app in the first place.  This project also found no means of gaining exlusive access to the microphone, or alternatively preventing other apps from listening, except possibly trying to expend enough memory to force other apps to close.  With this in mind, it could be possible for a user to swipe their card in to make a payment with the Square app in the foreground while a malicious app is listening to the swipe in the background.
 
-The background app attack is demonstrated in this project's implementation against sample apps, however this is only in the iOS Simulator.  Since there were no Apple Developer Connection accounts available for this project, the attack could not be attempted on real hardware against the Square app.
+The background app attack is demonstrated in this project's implementation against sample apps, however this is only in the iOS Simulator.  Since there were no Apple Developer Connection accounts available for this project, the attack could not be attempted on real hardware against the actual Square iOS app.
 
 
 #### Physical and Network Infrastructure
@@ -50,9 +50,9 @@ Square's back-end card processing systems are also [PCI DSS-1 compliant][square_
 
 #### Threat Model
 
-The threat model for this project is a malicious app that the user might download from Apple's App Store.  The app has access to all of the standard API's, but the app's behavior is "normal" (no stack smashing, no buffer overflow exploits, etc.), so the app could masquerade as a game or possibly social networking client.
+The threat model for this project is a malicious app that the user might download from Apple's iTunes Store.  The app has access to all of the standard API's, but the app's behavior is "normal" (no stack smashing, no buffer overflow exploits, etc.), so the app could masquerade as a game or possibly social networking client.
 
-We also discuss a more stringent threat model, in which the attacker has physical access to the device, for instance if they are an employee at a small vendor that uses Square for payment processing.  In this model the attacker may be able to download malicious apps directly to the phone, circumventing the App Store.
+We also discuss a more stringent threat model, in which the attacker has physical access to the device, for instance if they are an employee at a small vendor that uses Square for payment processing.  In this model the attacker may be able to download malicious apps directly to the phone, circumventing the iTunes Store.
 
 #### Attack Vectors
 
@@ -60,7 +60,7 @@ We also discuss a more stringent threat model, in which the attacker has physica
 
 The first attack vector is the one [proposed by VeriFone][verifone_calls_out_square], which is basically just phishing.  The attacker produces a clone of the Square app, and deceives the user into installing and running it.  While this attack is certainly possible and seems plausible on the surface since there is no encryption between the card reader and the device, in practice it is quite unlikely.  Some of the hurdles include:
 
-- Getting into the app store: Apple reviews every app before it gets into the app store.  A clone of an app as high-profile as Square would be easily noticed and difficult to pass off as legitimate.
+- Getting into the iTunes store: Apple reviews every app before it gets into the iTunes store.  A clone of an app as high-profile as Square would be easily noticed and difficult to pass off as legitimate.
 
 - Making payments: Vendors will notice quickly that payments are not being processed, so even if a malicious app did make its way on the device, its impact would be severly limited.
 
@@ -72,11 +72,11 @@ Given the above hurdles, only the second, more stringent threat model is valid. 
 
 In the second vector, the attacker attatches an electronic skimming device to the phone.  This could possibly be disguised as a case for the device, but somehow tap into the headphone jack.
 
-Once again, this attack is entirely possible since the signal is not encrypted and the [microphone contact is closest to the top of the recepticle][pinout], however the likelihood is limited.  This attack requires the more stringent threat model which, for the same reasons stated above is not likely.
+Once again, this attack is entirely possible since the signal coming from the reader is not encrypted, and it is made easier by the fact that the [microphone contact is closest to the top of the recepticle][pinout], however the likelihood is limited.  This attack requires the more stringent threat model which, for the same reasons stated above, is not likely.
 
 ###### Snooping
 
-The most plausible attack vector is snooping, which appears possible with either threat model.  In this attack, an app which is malicious but appears legitimate is submitted to the app store.  Since it ostensibly does not perform illegal actions and is masquerading as a useful app, it may be downloaded by users of Square.  The user would open the malicious app, and, unknown to the user, the app would start a background process and begin recording audio. When the user brings the Square app to the foreground and processes a payment, the malicious app will record the audio of the credit card swipe and post that to a malicious server for processing.
+The most plausible attack vector is snooping, which appears possible with either threat model.  In this attack, an app which is malicious but appears legitimate is submitted to the iTunes store.  Since it ostensibly does not perform illegal actions and is masquerading as a useful app, it may be downloaded by users of Square.  The user would open the malicious app, and, unknown to the user, the app would start a background process and begin recording audio. When the user brings the Square app to the foreground and processes a payment, the malicious app will record the audio of the credit card swipe and post that to a malicious server for processing.
 
 Once again, this cannot be officially verified without an Apple Developer Connection account, but implementation of this project suggests that it is possible.
 
