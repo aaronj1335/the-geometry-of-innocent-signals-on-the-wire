@@ -10,7 +10,7 @@
 
 ## Overview
 
-[Square][square] is a payment gateway that accepts credit card payments through the headphone jack of a smart phone or tablet device.  This report investigates the security of this system, specifically on the [iOS][ios] platform.  The Square System Components section provides details about the card reader, iOS application, and physical and network infrastructure; the Security section provides a threat model, followed by several possible attack vectors.
+[Square] is a payment gateway that accepts credit card payments through the headphone jack of a smart phone or tablet device.  This report investigates the security of this system, specifically on the [iOS] platform.  The Square System Components section provides details about the card reader, iOS application, and physical and network infrastructure; the Security section provides a threat model, followed by several possible attack vectors.
 
 This project also includes a sample implementation that demonstrates how a malicious iOS app could skim credit card numbers by either impersonating the Square app or possibly snooping the credit card signal from the audio jack.
 
@@ -20,9 +20,45 @@ This project also includes a sample implementation that demonstrates how a malic
 
 #### Card Reader
 
+###### Overview
+
 The Square card reader is a dongle that plugs into the headphone jack of the device.  They are freely attainable by signing up for an account on the Square website, and likely inexpensive to manufacture.  They are small, about one square inch in size, and require no batteries or power supply.  The signal coming from the reader into the device is analog, and the reader appears to have no digital circuitry.
 
 Immediately the card reader is a security red flag; it is extremely difficult to encrypt an analog signal coming from an unpowered device, so this is a likely attack vector.  Indeed, [VeriFone][verifone_calls_out_square] has criticized Square for this.  Square [initially said][square_wont_encrypt] they had no plans to encrypt their reader, but they have [since announced][square_working_with_visa_reqs] that they will provide an encrypted reader, in accordance with Visa [security guidelines][visa_security_requirements].  The new reader was rumored to be [available the summer of 2011][square_encrypted_reader], but the reader used for this project, which was received October 1st, 2011, was found not to be encrypted.
+
+###### The Card Reader Signal
+
+Getting information from the card reader requires converting the analog signal to digital, and then decoding the bits.  The analog signal uses [biphase mark coding][bmc_encoding] (BMC) to transmit either a 1 or a 0 based on the number of polarity transitions in each clock period.  1's are encoded by transitioning twice in one clock period, while 0's only transition once.
+
+<img src='smooth_bmc.png' width=730 />
+_Figure 1: Smooth, clean biphase mark coding (BMC) signal_
+
+Figure 1 shows a clean BMC encoded signal.  Figure 2 shows the same signal with the clock signal overlayed and the periods marked correspondingly as either 1 or 0.  As the figure shows, when the signal changes phase (from high-to-low or low-to-high) once in a transition, it is interpreted as a 0, and when the signal changes twice, it is interpreted as 1.
+
+<img src='smooth_bmc_with_clock_and_digits.png' width=730 />
+_Figure 2: BMC signal annotated with clock signal and digits_
+
+While the plots above suggest this is a straitforward process, experimentally it is more difficult since (a) the clock signal must be derived from the raw signal,  and (b) there is a significant amount of noise as shown in Figures 3a and 3b.
+
+<img src='noisy_full.png' style="margin: 0 15px; width: 340px;"/>
+<img src='noisy.png' style="margin: 0 15px; width: 340px;" />
+_Figure 3: Full, noisy BMC signal (left), and close-up (right)_
+
+The quality of the signal can vary significantly between cards, and the steps involved in processing vary depending on the level of noise.  The first step in extracting the bits from a poor signal is to smooth it with convolution and pass it through a median filter (Figure 4).
+
+<img src='raw_and_filtered.png' width=730 />
+_Figure 4: Raw signal plotted with convolution-smoothed and median-filtered signal_
+
+One may notice the gaps between the peaks of the raw signal and those of the smoothed and filtered.  These differences provide a fairly robust way of picking out transitions from low to high, since simply picking local maxima would yield many false positive transitions, even the from the smoothed signal.  
+
+However there is still a significant amount of noise when plotting the difference between the curves in Figure 4 (Figure 5, red signal).  When looking at only a small window of the signal, it would appear that one could just set a threshold, and any peak whose absolute value was below the threshold would be zeroed.  This is once again insufficiently robust, since the signal drastically changes magnitude (Figure 3a).  This next step used what this report will call a "histogram threshold filter".  This filter rolls through the signal, considering just a window in which the magnitude does not drastically change, but still includes around 5-10 periods of the waveform.  A histogram of the absolute values of the magnitudes in this window is plotted.  This histogram tends to take a backwards 'J' shape, where there are many samples with relatively small magnitudes, and the number of samples increases slightly at the top of the histogram, corresponding to the peaks where transitions happen.  The cutoff threshold is set at the local minimum of this 'J' shape, and all samples below the cutoff are zeroed.  The resulting signal is shown in the blue signal of Figure 5.
+
+<img src='peaks_and_hist_filtered.png' width=730 />
+_Figure 5: Signal peaks and histogram filtered peaks_
+
+At this point the reader should begin to notice how the peaks can be used to programatically find 1's and 0's from the analog signal.  There is one last catch though; the period of the signal decreases by about half over the course of the card swipe.  The initial approach was to calculate the peak frequency for a rolling window of the signal, and use this to find transitions.  This proved to be error prone, though, since the waveform period sometimes changes by up to 25% from one bit to the next.  As a result the algorithm used was a simpler, more straitforward approach of simply tracking the average period of the last 5 bits, and using that to estimate the location of the next.  This proved to be sufficiently robust and accurate.
+
+Once the signal was digitized, extracting the credit card numbers was as simple as following the [ISO 7813] guidlines for decoding Track 1 of magnetic card stripes (well summarized [here][magtek_card_standards]).  Initially, due to inconsistencies in digitizing and the rumors mentioned above, the author believed the signal might be encrypted.  As a result, several attempts were made to find patterns between signals by `XOR`ing them with the expected output, in hopes of finding a common key.  However, after refining the digitizing process, it became clear that the card reader does not encrypt the signal.
 
 #### iOS Application
 
@@ -52,7 +88,7 @@ Square's back-end card processing systems are also [PCI DSS-1 compliant][square_
 
 The threat model for this project is a malicious app that the user might download from Apple's iTunes Store.  The app has access to all of the standard API's, but the app's behavior is "normal" (no stack smashing, no buffer overflow exploits, etc.), so the app could masquerade as a game or possibly social networking client.
 
-We also discuss a more stringent threat model, in which the attacker has physical access to the device, for instance if they are an employee at a small vendor that uses Square for payment processing.  In this model the attacker may be able to download malicious apps directly to the phone, circumventing the iTunes Store.
+A more stringent threat model is also discussed, in which the attacker has physical access to the device, for instance if they are an employee at a small vendor that uses Square for payment processing.  In this model the attacker may be able to download malicious apps directly to the phone, circumventing the iTunes Store.
 
 #### Attack Vectors
 
@@ -127,8 +163,8 @@ This is verified in the steps above.
 
 This report serves as the document.
 
-[square]: https://squareup.com/
-[ios]: http://www.apple.com/ios/
+[Square]: https://squareup.com/
+[iOS]: http://www.apple.com/ios/
 [verifone_calls_out_square]: http://www.sq-skim.com/
 [visa_backs_square]: http://www.reuters.com/article/2011/04/27/us-visa-mobile-idUSTRE73Q5TZ20110427
 [square_working_with_visa_reqs]: http://www.visasecuritysummit.com/blog/?p=73&sms_ss=email&at_xt=4db9d989653130ad%2C0
@@ -142,3 +178,6 @@ This report serves as the document.
 [official_background_audio]: http://developer.apple.com/library/ios/documentation/iphone/conceptual/iphoneosprogrammingguide/ManagingYourApplicationsFlow/ManagingYourApplicationsFlow.html#//apple_ref/doc/uid/TP40007072-CH4-SW20
 [experimental_background_audio]: http://cocoawithlove.com/2011/04/background-audio-through-ios-movie.html
 [pinout]: http://pinouts.ru/HeadsetsHeadphones/iphone_headphone_pinout.shtml
+[magtek_card_standards]: http://stripesnoop.sourceforge.net/devel/layoutstd.pdf
+[bmc_encoding]: http://en.wikipedia.org/wiki/Biphase_mark_code
+[ISO 7813]: http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=43317
