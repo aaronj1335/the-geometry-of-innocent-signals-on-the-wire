@@ -5,15 +5,13 @@ from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 import sig
 
-def num(data_str, reverse=False):
+def num(data_str):
     a = array.array('h')
-    a.fromstring(reversed(data_str) if reverse else data_str)
+    a.fromstring(data_str)
     s = sig.Signal(raw_signal=a)
     d = sig.Decoder(signal=s)
     bits = ''.join(str(b[0]) for b in d.bits())
     cc = ''.join(n for n in sig.cc_num(bits))
-    if len(cc) < 16:
-        cc = ''.join(n for n in sig.cc_num(reversed(bits)))
     return cc
 
 class Server(SimpleHTTPRequestHandler):
@@ -31,14 +29,13 @@ class Server(SimpleHTTPRequestHandler):
         except Exception as e:
             print 'ERROR: exception while decoding swipe:'
             print e.message
-            response_str = 'ERROR: could not decode swipe'
-
-        try:
-            r = num(data_str, reverse=True)
-            print 'reversed swipe:',r
-        except Exception as e:
-            print 'ERROR: exception while decoding REVERSED swipe:'
-            print e.message
+            try:
+                response_str = num(''.join(n for n in reversed(data_str)))
+                print 'reversed swipe:',response_str
+            except Exception as e:
+                print 'ERROR: exception while decoding REVERSED swipe:'
+                print e.message
+                response_str = 'ERROR: could not decode swipe'
 
         self.send_response(200)
         self.send_header("Content-Length", str(len(response_str)))
