@@ -40,9 +40,9 @@ _Figure 2: BMC signal annotated with clock signal and digits_
 
 While the plots above suggest this is a straitforward process, experimentally it is more difficult since (a) the clock signal must be derived from the raw signal,  and (b) there is a significant amount of noise as shown in Figures 3a and 3b.
 
-<img src='noisy_full.png' style="margin: 0 15px; width: 340px;"/>
-<img src='noisy.png' style="margin: 0 15px; width: 340px;" />
-_Figure 3: Full, noisy BMC signal (left), and close-up (right)_
+<img src='noisy_full.png' style="margin: 0 5px; width: 340px;"/>
+<img src='noisy.png' style="margin: 0 5px; width: 340px;" />
+<div style="font-style: italic;">Figure 3: Full, noisy BMC signal (left), and close-up (right)</div><br />
 
 The quality of the signal can vary significantly between cards, and the steps involved in processing vary depending on the level of noise.  The first step in extracting the bits from a poor signal is to smooth it with convolution and pass it through a median filter (Figure 4).
 
