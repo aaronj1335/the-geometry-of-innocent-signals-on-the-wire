@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote {
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: "Helvetica Neue", Helvetica, "Hiragino Sans GB", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+    color: #737373;
+    margin: 10px 10px 10px 20px;
+}
+a {
+    color: #0069d6;
+}
+a:hover {
+    color: #0050a3;
+    text-decoration: none;
+}
+a img {
+    border: none;
+}
+p {
+    margin-bottom: 9px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: #404040;
+    line-height: 36px;
+}
+h1 {
+    margin-bottom: 18px;
+    font-size: 30px;
+}
+h2 {
+    font-size: 24px;
+}
+h3 {
+    font-size: 18px;
+}
+h4 {
+    font-size: 16px;
+}
+h5 {
+    font-size: 14px;
+}
+h6 {
+    font-size: 13px;
+}
+hr {
+    margin: 0 0 19px;
+    border: 0;
+    border-bottom: 1px solid #aaa;
+}
+blockquote {
+    padding: 13px 13px 21px 15px;
+    margin-bottom: 18px;
+    font-family:georgia,serif;
+    font-style: italic;
+}
+blockquote:before {
+    content:"\201C";
+    font-size:40px;
+    margin-left:-10px;
+    font-family:georgia,serif;
+    color:#eee;
+}
+blockquote p {
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 18px;
+    margin-bottom: 0;
+    font-style: italic;
+}
+code, pre {
+    padding: 0 3px 2px;
+    font-family: Monaco, Andale Mono, Courier New, monospace;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+}
+code {
+    background-color: #fee9cc;
+    color: rgba(0, 0, 0, 0.75);
+    padding: 1px 3px;
+    font-size: 12px;
+}
+pre {
+    display: block;
+    padding: 14px;
+    margin: 0 0 18px;
+    line-height: 16px;
+    font-size: 11px;
+    border: 1px dashed #ccc;
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    white-space: pre;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+pre code {
+    background-color: #fdfdfd;
+    color:#737373;
+    font-size: 11px;
+}
+@media screen and (min-width: 768px) {
+    body {
+        width: 748px;
+        margin:10px auto;
+    }
+}
+</style>
+<title>report.html</title>
+</head>
+<body>
+<h1>The Geometry of Innocent Signals on the Wire</h1>
+
+<h4>A security evaluation of <a href='https://squareup.com/'>Square</a></h4>
+
+<h3>CS 380S Fall 2010 | 0x1A Great Papers in Computer Security</h3>
+
+<h5>Aaron Stacy</h5>
+
+<h2>Overview</h2>
+
+<p><a href="https://squareup.com/">Square</a> is a payment gateway that accepts credit card payments through the headphone jack of a smart phone or tablet device.  This report investigates the security of this system, specifically on the <a href="http://www.apple.com/ios/">iOS</a> platform.  The Square System Components section provides details about the card reader, iOS application, and physical and network infrastructure; the Security section provides a threat model, followed by several possible attack vectors.</p>
+
+<p>This project also includes a sample implementation that demonstrates how a malicious iOS app could skim credit card numbers by either impersonating the Square app or possibly snooping the credit card signal from the audio jack.</p>
+
+<h2>Square System Components</h2>
+
+<h4>Card Reader</h4>
+
+<h6>Overview</h6>
+
+<p>The Square card reader is a dongle that plugs into the headphone jack of the device.  They are freely attainable by signing up for an account on the Square website, and likely inexpensive to manufacture.  They are small, about one square inch in size, and require no batteries or power supply.  The signal coming from the reader into the device is analog, and the reader appears to have no digital circuitry.</p>
+
+<p>Immediately the card reader is a security red flag; it is extremely difficult to encrypt an analog signal coming from an unpowered device, so this is a likely attack vector.  Indeed, <a href="http://www.sq-skim.com/">VeriFone</a> has criticized Square for this.  Square <a href="http://techcrunch.com/2011/03/09/squares-jack-dorsey-verifones-security-hole-allegation-is-not-a-fair-or-accurate-claim/">initially said</a> they had no plans to encrypt their reader, but they have <a href="http://www.visasecuritysummit.com/blog/?p=73&amp;sms_ss=email&amp;at_xt=4db9d989653130ad%2C0">since announced</a> that they will provide an encrypted reader, in accordance with Visa <a href="http://investor.visa.com/phoenix.zhtml?c=215693&amp;p=irol-newsArticle&amp;ID=1555291&amp;highlight=">security guidelines</a>.  The new reader was rumored to be <a href="http://storefrontbacktalk.com/securityfraud/square-reverses-course-now-embraces-encryption/">available the summer of 2011</a>, but the reader used for this project, which was received October 1st, 2011, was found not to be encrypted.</p>
+
+<h6>The Card Reader Signal</h6>
+
+<p>Getting information from the card reader requires converting the analog signal to digital, and then decoding the bits.  The analog signal uses <a href="http://en.wikipedia.org/wiki/Biphase_mark_code">biphase mark coding</a> (BMC) to transmit either a 1 or a 0 based on the number of polarity transitions in each clock period.  1&rsquo;s are encoded by transitioning twice in one clock period, while 0&rsquo;s only transition once.</p>
+
+<p><img src='smooth_bmc.png' width=730 />
+<em>Figure 1: Smooth, clean biphase mark coding (BMC) signal</em></p>
+
+<p>Figure 1 shows a clean BMC encoded signal.  Figure 2 shows the same signal with the clock signal overlayed and the periods marked correspondingly as either 1 or 0.  As the figure shows, when the signal changes phase (from high-to-low or low-to-high) once in a transition, it is interpreted as a 0, and when the signal changes twice, it is interpreted as 1.</p>
+
+<p><img src='smooth_bmc_with_clock_and_digits.png' width=730 />
+<em>Figure 2: BMC signal annotated with clock signal and digits</em></p>
+
+<p>While the plots above suggest this is a straitforward process, experimentally it is more difficult since (a) the clock signal must be derived from the raw signal,  and (b) there is a significant amount of noise as shown in Figures 3a and 3b.</p>
+
+<p><img src='noisy_full.png' style="margin: 0 5px; width: 340px;"/>
+<img src='noisy.png' style="margin: 0 5px; width: 340px;" /></p>
+
+<div style="font-style: italic;">Figure 3: Full, noisy BMC signal (left), and close-up (right)</div>
+
+
+<br />
+
+
+<p>The quality of the signal can vary significantly between cards, and the steps involved in processing vary depending on the level of noise.  The first step in extracting the bits from a poor signal is to smooth it with convolution and pass it through a median filter (Figure 4).</p>
+
+<p><img src='raw_and_filtered.png' width=730 />
+<em>Figure 4: Raw signal plotted with convolution-smoothed and median-filtered signal</em></p>
+
+<p>One may notice the gaps between the peaks of the raw signal and those of the smoothed and filtered.  These differences provide a fairly robust way of picking out transitions from low to high, since simply picking local maxima would yield many false positive transitions, even the from the smoothed signal.</p>
+
+<p>However there is still a significant amount of noise when plotting the difference between the curves in Figure 4 (Figure 5, red signal).  When looking at only a small window of the signal, it would appear that one could just set a threshold, and any peak whose absolute value was below the threshold would be zeroed.  This is once again insufficiently robust, since the signal drastically changes magnitude (Figure 3a).  This next step used what this report will call a &ldquo;histogram threshold filter&rdquo;.  This filter rolls through the signal, considering just a window in which the magnitude does not drastically change, but still includes around 5-10 periods of the waveform.  A histogram of the absolute values of the magnitudes in this window is plotted.  This histogram tends to take a backwards &lsquo;J&rsquo; shape, where there are many samples with relatively small magnitudes, and the number of samples increases slightly at the top of the histogram, corresponding to the peaks where transitions happen.  The cutoff threshold is set at the local minimum of this &lsquo;J&rsquo; shape, and all samples below the cutoff are zeroed.  The resulting signal is shown in the blue signal of Figure 5.</p>
+
+<p><img src='peaks_and_hist_filtered.png' width=730 />
+<em>Figure 5: Signal peaks and histogram filtered peaks</em></p>
+
+<p>At this point the reader should begin to notice how the peaks can be used to programatically find 1&rsquo;s and 0&rsquo;s from the analog signal.  There is one last catch though; the period of the signal decreases by about half over the course of the card swipe.  The initial approach was to calculate the peak frequency for a rolling window of the signal, and use this to find transitions.  This proved to be error prone, though, since the waveform period sometimes changes by up to 25% from one bit to the next.  As a result the algorithm used was a simpler, more straitforward approach of simply tracking the average period of the last 5 bits, and using that to estimate the location of the next.  This proved to be sufficiently robust and accurate.</p>
+
+<p>Once the signal was digitized, extracting the credit card numbers was as simple as following the <a href="http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=43317">ISO 7813</a> guidlines for decoding Track 1 of magnetic card stripes (well summarized <a href="http://stripesnoop.sourceforge.net/devel/layoutstd.pdf">here</a>).  Initially, due to inconsistencies in digitizing and the rumors mentioned above, the author believed the signal might be encrypted.  As a result, several attempts were made to find patterns between signals by <code>XOR</code>ing them with the expected output, in hopes of finding a common key.  However, after refining the digitizing process, it became clear that the card reader does not encrypt the signal.</p>
+
+<h4>iOS Application</h4>
+
+<p>Square&rsquo;s iOS application is <a href="https://squareup.com/security/levels">PCI DSS-1 compliant</a>, which has a couple important implications:</p>
+
+<ul>
+<li><p><strong>Data stored on the device must be encrypted</strong> (<a href="https://www.pcisecuritystandards.org/documents/pci_dss_v2.pdf">requirement 3</a>): This requirement could likely accomplished with <a href="http://developer.apple.com/library/mac/documentation/security/Conceptual/Security_Overview/Architecture/Architecture.html#//apple_ref/doc/uid/TP30000976-CH202-SW9">Apple&rsquo;s iOS Keychain API</a>, however Square claims to <a href="https://squareup.com/security/levels">store no magnetic stripe data</a>.</p></li>
+<li><p><strong>Data transmitted over public networks must be encrypted</strong> (<a href="https://www.pcisecuritystandards.org/documents/pci_dss_v2.pdf">requirement 4</a>): This requirement appears to be accomplished with SSL.  Vulnerabilities in SSL and certificate authorities encompass a broad subject that is out of scope for this project, so this aspect of the Square system was not investigated any further.</p></li>
+</ul>
+
+
+<p>However there are facets of the device that are not addressed in the PCI standard, specifically the standard does not place constriants on data traveling from the reader to the application, aside from the very general sixth requirement, to &ldquo;develop and maintain secure systems and applications&rdquo;.</p>
+
+<p>Due to the sandboxed, restricted nature of iOS apps, it is generally difficult for one app to snoop the state of another.  For example, there is no public API for sharing files between apps, only <a href="http://developer.apple.com/library/ios/documentation/iPhone/Conceptual/iPhoneOSProgrammingGuide/AdvancedAppTricks/AdvancedAppTricks.html#//apple_ref/doc/uid/TP40007072-CH7-SW18">providing custom URL schemes</a>.  However shared resources such as the microphone present an interesting opportunity.  Apple does not provide official documentation about sharing audio in apps.  Official documentation on <a href="http://developer.apple.com/library/ios/documentation/iphone/conceptual/iphoneosprogrammingguide/ManagingYourApplicationsFlow/ManagingYourApplicationsFlow.html#//apple_ref/doc/uid/TP40007072-CH4-SW20">audio in background apps</a> is terse at best, and the implementation is <a href="http://cocoawithlove.com/2011/04/background-audio-through-ios-movie.html">quirky and brittle</a>.</p>
+
+<p>This project found that while a foreground app is recording audio, it is possible for a background app to be doing so as well, without any notification to the user, though a user would have had to open the background app in the first place.  This project also found no means of gaining exlusive access to the microphone, or alternatively preventing other apps from listening, except possibly trying to expend enough memory to force other apps to close.  With this in mind, it could be possible for a user to swipe their card in to make a payment with the Square app in the foreground while a malicious app is listening to the swipe in the background.</p>
+
+<p>The background app attack is demonstrated in this project&rsquo;s implementation against sample apps, however this is only in the iOS Simulator.  Since there were no Apple Developer Connection accounts available for this project, the attack could not be attempted on real hardware against the actual Square iOS app.</p>
+
+<h4>Physical and Network Infrastructure</h4>
+
+<p>Square&rsquo;s back-end card processing systems are also <a href="https://squareup.com/security/levels">PCI DSS-1 compliant</a>.  This is also a layer of the stack that has broad security implications that are out of scope of this project, so no vulnerabilities were investigated.</p>
+
+<h2>Square Security</h2>
+
+<h4>Threat Model</h4>
+
+<p>The threat model for this project is a malicious app that the user might download from Apple&rsquo;s iTunes Store.  The app has access to all of the standard API&rsquo;s, but the app&rsquo;s behavior is &ldquo;normal&rdquo; (no stack smashing, no buffer overflow exploits, etc.), so the app could masquerade as a game or possibly social networking client.</p>
+
+<p>A more stringent threat model is also discussed, in which the attacker has physical access to the device, for instance if they are an employee at a small vendor that uses Square for payment processing.  In this model the attacker may be able to download malicious apps directly to the phone, circumventing the iTunes Store.</p>
+
+<h4>Attack Vectors</h4>
+
+<h6>Phishing</h6>
+
+<p>The first attack vector is the one <a href="http://www.sq-skim.com/">proposed by VeriFone</a>, which is basically just phishing.  The attacker produces a clone of the Square app, and deceives the user into installing and running it.  While this attack is certainly possible and seems plausible on the surface since there is no encryption between the card reader and the device, in practice it is quite unlikely.  Some of the hurdles include:</p>
+
+<ul>
+<li><p>Getting into the iTunes store: Apple reviews every app before it gets into the iTunes store.  A clone of an app as high-profile as Square would be easily noticed and difficult to pass off as legitimate.</p></li>
+<li><p>Making payments: Vendors will notice quickly that payments are not being processed, so even if a malicious app did make its way on the device, its impact would be severly limited.</p></li>
+<li><p>Square app design: Much like the visual queues on a dollar bill, the Square app design is very detailed and difficult to forge.  Phishing attacks would have to assume that the user is not familiar with the app&rsquo;s user interface.</p></li>
+</ul>
+
+
+<p>Given the above hurdles, only the second, more stringent threat model is valid.  This threat model is very difficult to prevent, and in fact is no different than situations where buyers give their credit card to a malicious bartender or restaurant server.</p>
+
+<h6>Electronic Skimming</h6>
+
+<p>In the second vector, the attacker attatches an electronic skimming device to the phone.  This could possibly be disguised as a case for the device, but somehow tap into the headphone jack.</p>
+
+<p>Once again, this attack is entirely possible since the signal coming from the reader is not encrypted, and it is made easier by the fact that the <a href="http://pinouts.ru/HeadsetsHeadphones/iphone_headphone_pinout.shtml">microphone contact is closest to the top of the recepticle</a>, however the likelihood is limited.  This attack requires the more stringent threat model which, for the same reasons stated above, is not likely.</p>
+
+<h6>Snooping</h6>
+
+<p>The most plausible attack vector is snooping, which appears possible with either threat model.  In this attack, an app which is malicious but appears legitimate is submitted to the iTunes store.  Since it ostensibly does not perform illegal actions and is masquerading as a useful app, it may be downloaded by users of Square.  The user would open the malicious app, and, unknown to the user, the app would start a background process and begin recording audio. When the user brings the Square app to the foreground and processes a payment, the malicious app will record the audio of the credit card swipe and post that to a malicious server for processing.</p>
+
+<p>Once again, this cannot be officially verified without an Apple Developer Connection account, but implementation of this project suggests that it is possible.</p>
+
+<h2>Project Deliverables</h2>
+
+<p>Below are concise summaries of what this project found for each of its deliverables.</p>
+
+<blockquote><p>Determine if it is it possible for two different iOS apps to listen to the microphone (the input for the Square device) at the same time</p></blockquote>
+
+<p>It is possible.</p>
+
+<blockquote><p>Provide an implementation demonstrating two apps inputting from the microphone at the same time</p></blockquote>
+
+<p>To verify, compile the &lsquo;Crooked&rsquo; and &lsquo;SpeakHere&rsquo; apps provided in the project implementation in XCode.  Launch the Crooked app and start recording.  Switch to the SpeakHere app and record a short sound byte.  Switch back to the Crooked app and stop the recording and listen to verify that it continued recording in the background.</p>
+
+<blockquote><p>Determine if is it possible for an app to gain exclusive listening privileges to to the microphone</p></blockquote>
+
+<p>It does not appear to be possible.  The project found no evidence of this capability in the official documentation or elsewhere online.</p>
+
+<blockquote><p>Determine whether it is possible for a background app to snoop the input from the Square app</p></blockquote>
+
+<p>This appears to be possible, however without an Apple Developer Connection account, this is only based on interacting with a dummy app (SpeakHere).</p>
+
+<blockquote><p>Provide an implementation demonstrating whether or not this is possible</p></blockquote>
+
+<p>To verify, start the processing server from the base of the project directory:</p>
+
+<pre><code>$ ./server.py
+</code></pre>
+
+<p>Follow the steps above, but connect the Square card reader device and record the swiping of the card.</p>
+
+<p>Note that you must correctly specify the hostname of the machine running <code>server.py</code> in the Crooked app.  Also, in order to capture audio from the microphone line-in into the iOS Simulator on a Mac laptop, you must also connect something to the audio line out.</p>
+
+<blockquote><p>If one app is capable of gaining exclusive access to the audio device, this may be another DoS attack vector</p></blockquote>
+
+<p>This does not appear to be possible</p>
+
+<blockquote><p>Determine if it would be possible to instrument a &ldquo;device-in-the-middle&rdquo; attack on the square device</p></blockquote>
+
+<p>This is possible, and is described as an attack vector in the &lsquo;Electronic Skimming&rsquo; section above.</p>
+
+<blockquote><p>Provide a software implementation that demonstrates whether this is possible</p></blockquote>
+
+<p>This is verified in the steps above.</p>
+
+<blockquote><p>Provide a substantial document reviewing the architecture of the payment system, with a special focus on the Square card reader and the iOS system</p></blockquote>
+
+<p>This report serves as the document.</p>
+</body>
+</html>
